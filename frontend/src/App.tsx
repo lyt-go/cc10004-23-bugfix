@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Route, Routes } from 'react-router-dom'
+import { NavLink, Route, Routes } from 'react-router-dom'
 
 import Overview from './views/Overview'
 import ChannelView from './views/channel'
@@ -10,10 +10,12 @@ import RoiView from './views/roi'
 import ConversionView from './views/conversion'
 import UserpathView from './views/userpath'
 import RetentionView from './views/retention'
+import RetentionDetail from './views/retention/RetentionDetail'
 import EventdefView from './views/eventdef'
 import ProfileView from './views/profile'
 import HeatmapView from './views/heatmap'
 import BenchmarkView from './views/benchmark'
+import BenchmarkDetail from './views/benchmark/BenchmarkDetail'
 import AuditcheckView from './views/auditcheck'
 import AbgroupView from './views/abgroup'
 import DatavizView from './views/dataviz'
@@ -32,9 +34,14 @@ export default function App() {
         <h1 className="app-title">数据产品运营与归因分析平台</h1>
         <nav className="nav-list">
           {navItems.map((item) => (
-            <Link key={item.path} to={item.path} className="nav-item">
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === '/'}
+              className={({ isActive }) => `nav-item${isActive ? ' router-link-active' : ''}`}
+            >
               {item.label}
-            </Link>
+            </NavLink>
           ))}
         </nav>
       </aside>
@@ -53,10 +60,12 @@ export default function App() {
           <Route path="/conversion" element={<ConversionView />} />
           <Route path="/userpath" element={<UserpathView />} />
           <Route path="/retention" element={<RetentionView />} />
+          <Route path="/retention/:code" element={<RetentionDetail />} />
           <Route path="/eventdef" element={<EventdefView />} />
           <Route path="/profile" element={<ProfileView />} />
           <Route path="/heatmap" element={<HeatmapView />} />
           <Route path="/benchmark" element={<BenchmarkView />} />
+          <Route path="/benchmark/:code" element={<BenchmarkDetail />} />
           <Route path="/auditcheck" element={<AuditcheckView />} />
           <Route path="/abgroup" element={<AbgroupView />} />
           <Route path="/dataviz" element={<DatavizView />} />

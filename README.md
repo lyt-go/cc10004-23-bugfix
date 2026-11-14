@@ -4,8 +4,39 @@
 
 这是一个**纯前端**管理平台：React + Vite + TypeScript，仓库里没有后端服务。业务数据由
 `frontend/src/data/` 下的本地数据层提供：首次打开用示例数据播种，之后的登记、筛选与状态流转
-结果都持久化在浏览器 `localStorage` 里，刷新或重开浏览器都还在。dev server 已关掉自动打开页面，
-启动后按终端打印的地址手工打开。
+结果都持久化在浏览器 `localStorage` 里（存储键 `data-product-ops:entries:v2`），刷新或重开
+浏览器都还在。dev server 已关掉自动打开页面，启动后按终端打印的地址手工打开。
+
+## 竞品对标 → 留存分析 的写入边界
+
+冻结凭据（`freezeTickets`）与留存阈值版本（`thresholdVersions`）是两个独立聚合，领域逻辑统一
+收口在 `frontend/src/api/freeze-service.ts`，页面只做渲染与动作派发：
+
+1. **评审门禁**：对标/留存方案必须按 `草稿 → 评审中 → 已启用` 推进，只有通过评审并启用的
+   对标方案才能冻结。
+2. **冻结即快照**：冻结时把基准值、差距阈值、对比指标、采集周期、冻结时点写进冻结凭据
+   （单号 `FROZ-xxxx`）。冻结后对标详情里的「当前基准值」仍可修改，但冻结基准值与留存阈值
+   不再变化。对比指标适用周期按采集周期推导（月度→`YYYY-MM`、季度→`YYYYQn`、年度→`YYYY`）。
+3. **留存只读冻结版本**：留存方案通过冻结单号引用凭据；任何新阈值都只能生成「待确认」版本，
+   已生效版本不允许原地修改，确认后旧版本转「已失效」并保留完整时间线。冻结前已启用的阈值
+   （如 RETE-0002 的 v1：35%/7 天）与冻结时间始终保留。
+4. **相撞处理**：连续冻结或同周期两版更新相撞时，以首个冻结单号对应的版本为准，后到的请求
+   只生成「复核中」冻结单（指向首单），不写任何留存阈值。
+5. **事务回滚**：冻结记录、阈值版本、方案行通过 `saveMany` 一次提交，`localStorage` 写入失败
+   时内存与持久化整体回到写入前状态。
+
+页面入口：对标列表/留存列表的行可点击进入详情页（`/benchmark/:code`、`/retention/:code`），
+两个列表页都提供「重置边界数据」按钮，把四个相关聚合一起恢复到播种态。
+
+领域逻辑的端到端校验脚本在 `scripts/freeze-domain-check.ts`（Node 内模拟 localStorage，
+共 65 项断言），重新生成方式：
+
+```bash
+cd frontend
+./node_modules/.bin/esbuild ../scripts/freeze-domain-check.ts --bundle --platform=node \
+  --format=esm --alias:@=$(pwd)/src --outfile=/tmp/freeze-check.mjs
+node /tmp/freeze-check.mjs
+```
 
 ## 目录结构
 
@@ -67,8 +98,10 @@ npm run build
   `frontend/src/api/local-service.ts`。
 - 字段、状态、动作与流转目标集中在 `frontend/src/data/modules.ts`；示例数据在
   `frontend/src/data/seed.ts`。
-- 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
-- 想回到初始数据：清掉浏览器里 `data-product-ops:entries` 这一项，或调用 `resetModule(模块)`。
+- 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断；对标冻结的跨聚合写事务
+  收口在 `api/freeze-service.ts`。
+- 想回到初始数据：清掉浏览器里 `data-product-ops:entries:v2` 这一项，或在对标/留存列表页点
+  「重置边界数据」（等价于 `resetFreezeDomain()`）。
 
 领域：数据工程
 子方向：数据分析与数据应用
